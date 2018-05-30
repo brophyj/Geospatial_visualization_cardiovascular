@@ -1,0 +1,102 @@
+---
+title: "Mapping_AS_cases in Montreal"
+author: "Nancy Zhu"
+date: "May 29, 2018"
+output: 
+  html_document:
+    theme: flatly
+    hightlight: tango
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r,message=F,warning=F}
+library(ggplot2)
+library(magrittr)
+library(dplyr)
+library(plotly)
+case_final_map<-readRDS('case_map.RData')
+interv_final_map<-readRDS('interv_map.RData')
+```
+
+This plots shows incidence rate of aortic stenosis (per 1000 person year **above 65**) in Montreal between 2000 and 2010. City of Montreal was divided by CLSC regions. The number of incidence cases were ascertained from in-hospital diagnosis of aortic stenosis from RAMQ database.
+
+The incidence rate were calculated as: $\frac{Cumulative\:number\:of\:incidence\:AS\:cases}{Mean\: population >=65 * 10 years}$
+
+```{r,warning=F, message=F}
+p<-ggplot(data=case_final_map,aes(long,lat,group=group,fill=rate,label=CLSC_nom)) + 
+  geom_polygon(color='gray70',size=0.2)+
+  #coord_map(projection='albers',lat0=39,lat1=45)+
+  theme(axis.line=element_blank(),
+        axis.text=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid=element_blank(),
+        panel.spacing=unit(0, "lines"),
+        plot.background=element_blank(),
+        legend.justification = c(0.9,0.2),
+        legend.position = c(0.95,0.2)
+  )#+facet_wrap(~cyear)
+
+p<- p+scale_fill_gradient(low='slategray1', high='royalblue4')
+ #default color is set to blue, can be set
+ggplotly(p)%>%layout(title='Incidence rate of AS in Montreal \n from 2000-2010',
+                       titlefont=list(size=15))
+```
+
+
+This plots shows the rate of surgical valve replacement(per 1000 person year **above 65**) performed in Montreal between 2000 and 2010. City of Montreal was divided by CLSC regions.The number of SAVRs were ascertained from in-hospital interventions from RAMQ database.
+
+The rate of SAVR were calculated as: $\frac{Cumulative\:number\:of\:SAVR}{Mean\:population >=65 * 10 years}$
+
+```{r,message=F,warning=F}
+p<-ggplot(data=interv_final_map,aes(long,lat,group=group,fill=rate,label=CLSC_nom)) + 
+  geom_polygon(color='gray70',size=0.2)+
+  #coord_map(projection='albers',lat0=39,lat1=45)+
+  theme(axis.line=element_blank(),
+        axis.text=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid=element_blank(),
+        panel.spacing=unit(0, "lines"),
+        plot.background=element_blank(),
+        legend.justification = c(0.9,0.2),
+        legend.position = c(0.95,0.2)
+  )#+facet_wrap(~cyear)
+
+p<- p+scale_fill_gradient(low='slategray3', high='royalblue4')
+ggplotly(p)%>%layout(title='Rate of SAVR in Montreal \n from 2000-2010',
+                       titlefont=list(size=15))
+```
+
+
+```{r,message=F,warning=F}
+p<-ggplot(data=case_final_map,aes(long,lat,group=group,fill=mean_pop,label=CLSC_nom)) + 
+  geom_polygon(color='gray70',size=0.2)+
+  #coord_map(projection='albers',lat0=39,lat1=45)+
+  theme(axis.line=element_blank(),
+        axis.text=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid=element_blank(),
+        panel.spacing=unit(0, "lines"),
+        plot.background=element_blank(),
+        legend.justification = c(0.9,0.2),
+        legend.position = c(0.95,0.2)
+  )#+facet_wrap(~cyear)
+
+p<- p+scale_fill_gradient(low='yellow', high='red')
+ #default color is set to blue, can be set
+ggplotly(p)%>%layout(title='Average population >=65 years old in Montreal \n from 2000-2010',
+                       titlefont=list(size=15))
+```
+
