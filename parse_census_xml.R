@@ -3,6 +3,7 @@ library(xml2)
 library(dplyr)
 library(stringr)
 library(tidyr)
+library(magrittr)
 
 #age specific population data:
 age<-read_xml('./2006_census/Age_sex/Generic_94-575-XCB2006003.xml')
@@ -25,14 +26,32 @@ age_df2<-age_df%>%filter(fsa_clean %in% fsacode)
 
 age_row<-read.csv('census_age_sample.csv',stringsAsFactors = F,header=F)
 age_row$V1<-as.character(age_row$V1)
-age_df2<-left_join(age_df2,age_row[,1:3],by=c('age_cat'='V1'))
+age_row$V5<-NA
+age_row$V5[c(4:21,23:40)]<-as.character(unique(cut(1:85,breaks=c(seq(from = 0, to = 85, by =5),Inf),right=F)))
+age_df2<-left_join(age_df2,age_row[,c(1,3,5)],by=c('age_cat'='V1'))
 
 #transform to wide format:
-age_df3<-age_df2%>%filter(V3 %in% c('Male','Female'))%>%
+age_df3<-age_df2%>%filter(!is.na(V5))%>%
                    select(-age_cat,-fsa)%>%
                    spread(V3,population)
 
+age_df3$population<-as.numeric(age_df3$Female)+as.numeric(age_df3$Male)
+age_df3%<>%select(-Female,-Male)
+
+#using 2006 Canadian age specific population as standard population:
+standard_pop<-age_df%>%filter(fsa=='01')%>%
+  left_join(age_row[,c(1,3,5)],by=c('age_cat'='V1'))
+
+#calculate total age-specific population:
+standard_pop<-standard_pop%>%filter(!is.na(V5))%>%
+  select(-age_cat)%>%
+  spread(V3,population)%>%
+  mutate(population=as.numeric(Female)+as.numeric(Male))%>%
+  select(-Female,-Male,-fsa_clean)
+
 rm(age_df2,age_df,age)
+
+
 
 # income data
 income<-read_xml('./2006_census/income/Generic_94-581-XCB2006003.xml')
