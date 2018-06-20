@@ -1,15 +1,32 @@
-#map incidence of AS cases to FSA map:
-library(pacman)
-p_load('dplyr','lubridate','ggplot2','rgdal','maptools','RColorBrewer')
+---
+title: "Mapping age standardized incidence AS rate in Greater Montreal Area"
+author: "Nancy Zhu"
+date: "June 19, 2018"
+output: 
+  html_document:
+    theme: flatly
+    hightlight: tango
+    code_folding: hide
+---
 
-#unzip FSA_map.zip:
-unzip('FSA_map.zip',exdir = 'FSA_map')
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r,message=F,warning=F}
+library(pacman)
+p_load('dplyr','lubridate','ggplot2','rgdal','maptools','RColorBrewer','stringr','plotly','magrittr')
+
+
+case_final_tb<-readRDS('case_age_incidence.RData')
+interv_final_tb<-readRDS('interv_age_incidence.RData')
+
+#format the map:
 fsa_map<-readOGR(dsn='FSA_map',layer='gfsa000b11a_e',encoding='UTF-8',stringsAsFactors = F)
 fsa_data<-fsa_map@data
 
 #subset map to Montreal region:
 #need to get a list of FSA in Montreal (scrap from online)
-library(stringr)
 fsacode<-read.csv('montreal_fsa.csv',stringsAsFactors = F,header=F)
 fsacode<-unlist(str_extract_all(fsacode$V1,'H\\d{1}[[:upper:]]{1}'))
 fsa_mtl<-fsa_map[fsa_data$CFSAUID %in% fsacode,]
@@ -21,9 +38,15 @@ rm(fsa_map)
 fsa_mtl2<-fortify(fsa_mtl)
 fsa_data$id<-row.names(fsa_data)
 fsa_mtl2<-left_join(fsa_mtl2,fsa_data[,c(1,4)])
+```
 
-#age_standaridized dataset is output from 'age-adjusted-rate-calculation.R'
-age_incidence<-left_join(fsa_mtl2,age_standaridized,by=c('CFSAUID'='fsa_clean'))
+
+This plots shows age-standarized incidence rate of aortic stenosis (per 1000 population **above 60**) in Montreal between 2000 and 2010. Greater Montreal region was divided by 119 FSA regions. The number of incidence cases were ascertained from in-hospital diagnosis of aortic stenosis from RAMQ database.
+
+Age-specific population data for each FSA area was extracted from Statistic Canada 2006 Census. And the 2006 Age-specific Canada population was used as the standard population.
+
+```{r,warning=F, message=F}
+age_incidence<-left_join(fsa_mtl2,case_final_tb,by=c('CFSAUID'='fsa_clean'))
 age_incidence$age.standarized.rate[is.na(age_incidence$age.standarized.rate)]<-0
 
 p<-ggplot(data=age_incidence,aes(long,lat,group=group,fill=age.standarized.rate,label=CFSAUID)) + 
@@ -46,12 +69,13 @@ p<-ggplot(data=age_incidence,aes(long,lat,group=group,fill=age.standarized.rate,
 p<- p+scale_fill_distiller(type = "seq", palette = 14, direction = 1)
 
 ggplotly(p)
+```
 
-saveRDS(age_incidence,'standarized-incidence.RData')
+
+This plots shows the rate of surgical valve replacement(per 1000 population **above 60**) performed in Montreal between 2000 and 2010. Greater Montreal region was divided by 119 FSA regions.The number of SAVRs were ascertained from in-hospital interventions from RAMQ database.
 
 
-########################################################################################################
-#mapping rate of AS surgical intervention:
+```{r,message=F,warning=F}
 interv_age_incidence<-left_join(fsa_mtl2,interv_final_tb,by=c('CFSAUID'='fsa_clean'))
 interv_age_incidence$age.standarized.rate[is.na(interv_age_incidence$age.standarized.rate)]<-0
 
@@ -75,3 +99,6 @@ p<-ggplot(data=interv_age_incidence,aes(long,lat,group=group,fill=age.standarize
 p<- p+scale_fill_distiller(type = "seq", palette = 14, direction = 1)
 
 ggplotly(p)
+
+```
+
