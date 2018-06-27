@@ -18,8 +18,11 @@ library(pacman)
 p_load('dplyr','lubridate','ggplot2','rgdal','maptools','RColorBrewer','stringr','plotly','magrittr')
 
 
-case_final_tb<-readRDS('case_age_incidence.RData')
-interv_final_tb<-readRDS('interv_age_incidence.RData')
+case_final_tb<-readRDS('case_age_incidence2.RData')
+interv_final_tb<-readRDS('interv_age_incidence2.RData')
+mi_final_tb<-readRDS('MI_age_incidence.RData')
+sociale<-readRDS('sociale.RData')
+materielle<-readRDS('materielle.RData')
 
 #format the map:
 fsa_map<-readOGR(dsn='FSA_map',layer='gfsa000b11a_e',encoding='UTF-8',stringsAsFactors = F)
@@ -49,7 +52,9 @@ Age-specific population data for each FSA area was extracted from Statistic Cana
 age_incidence<-left_join(fsa_mtl2,case_final_tb,by=c('CFSAUID'='fsa_clean'))
 age_incidence$age.standarized.rate[is.na(age_incidence$age.standarized.rate)]<-0
 
-p<-ggplot(data=age_incidence,aes(long,lat,group=group,fill=age.standarized.rate,label=CFSAUID)) + 
+mapplot<-function(df,variable,title,color){
+
+p<-ggplot(data=df,aes_string('long','lat',group='group',fill=variable,label='CFSAUID')) + 
   geom_polygon(color='gray70',size=0.2)+
   #coord_map(projection='albers',lat0=39,lat1=45)+
   theme(axis.line=element_blank(),
@@ -64,11 +69,15 @@ p<-ggplot(data=age_incidence,aes(long,lat,group=group,fill=age.standarized.rate,
         legend.justification = c(0.9,0.2),
         legend.position = c(0.6,0.2)
   )+
-  ggtitle('Age-standarized incidence AS rate in Quebec \n from 2000-2011')
+  ggtitle(title)
 
-p<- p+scale_fill_distiller(type = "seq", palette = 14, direction = 1)
+p<- p+scale_fill_distiller(type = "seq", palette = color, direction = 1)
 
 ggplotly(p)
+}
+
+mapplot(age_incidence,'age.standarized.rate','Age-standarized incidence AS rate in Montreal \n from 2000-2011',14)
+
 ```
 
 
@@ -79,26 +88,60 @@ This plots shows the rate of surgical valve replacement(per 1000 population **ab
 interv_age_incidence<-left_join(fsa_mtl2,interv_final_tb,by=c('CFSAUID'='fsa_clean'))
 interv_age_incidence$age.standarized.rate[is.na(interv_age_incidence$age.standarized.rate)]<-0
 
-p<-ggplot(data=interv_age_incidence,aes(long,lat,group=group,fill=age.standarized.rate,label=CFSAUID)) + 
-  geom_polygon(color='gray70',size=0.2)+
-  #coord_map(projection='albers',lat0=39,lat1=45)+
-  theme(axis.line=element_blank(),
-        axis.text=element_blank(),
-        axis.ticks=element_blank(),
-        axis.title=element_blank(),
-        panel.background=element_blank(),
-        panel.border=element_blank(),
-        panel.grid=element_blank(),
-        panel.spacing=unit(0, "lines"),
-        plot.background=element_blank(),
-        legend.justification = c(0.9,0.2),
-        legend.position = c(0.6,0.2)
-  )+
-  ggtitle('Age-standarized rate of AS surgical interventions in Quebec \n from 2000-2011')
+mapplot(interv_age_incidence,'age.standarized.rate','Age-standarized rate of AS surgical interventions in Montreal \n from 2000-2011',14)
 
-p<- p+scale_fill_distiller(type = "seq", palette = 14, direction = 1)
+```
 
-ggplotly(p)
 
+##### Check for potential confounding:
+The uneven distribution of AS incidence could be due to several confounders. In this graph, we are investigating the distribution of acute myocardial infarction in Montreal area. We suspect that since AS shares many common risk factors with myocardial infarction, individuals with MI are more likely to be diagnosed with AS due to more frequence hospital visit.
+
+```{r,message=F,warning=F}
+mi_age_incidence<-left_join(fsa_mtl2,mi_final_tb,by=c('CFSAUID'='fsa_clean'))
+mi_age_incidence$age.standarized.rate[is.na(mi_age_incidence$age.standarized.rate)]<-0
+
+mapplot(mi_age_incidence,'age.standarized.rate','Age-standarized rate of acute MI in Montreal \n from 2000-2011',1)
+
+```
+
+
+##### Exploring socio-economic status in Montreal
+
+Introduction:
+
+The Québec index of material and social deprivation is plotted in the following maps. The deprivation index consists of six socio-economic indicators, all derived from Canadian censuses, at the EA or DA levels. 
+
+These indicators are:
+
+1. the proportion of people aged 15 years and older with no high school diploma (SCOLAR)
+
+2. the population/employment ratio of people aged 15 years and older (EMPLOI)
+
+3. the average income of people aged 15 years and older (REVENU)
+
+4. the proportion of individuals aged 15 years and older living alone (SEULES)
+
+5. the proportion of individuals aged 15 years and older whose marital status is either
+separated, divorced, or widowed (S_D_V)
+
+6. the proportion of single-parent families (F_MONO).
+
+Principal components analysis (PCA), a form of factor analysis, is the method used to combine socio-economic indicators in the form of a deprivation index. PCA carried out for Québec revealed **two components**, one said to be material, the other social.**The first reflects mainly education, employment and income**, and **the second, marital status (being widowed,separated, or divorced), living alone, or being in a single-parent family.** The Québec deprivation index is thus two-dimensional, with a material component and a
+social component that can be examined separately or jointly. 
+
+
+Source: https://www.inspq.qc.ca/pdf/publications/1258_QcIndexDeprivation1991-2006.pdf
+
+The following 2 maps shows the median quintile of social and material components score in each FSA region in montreal between 2001 and 2011. A score of 1 means least-deprived, while a score of 5 means highly-deprived.
+
+```{r,message=F,warning=F}
+sociale<-left_join(fsa_mtl2,sociale,by=c('CFSAUID'='cp3'))
+materielle<-left_join(fsa_mtl2,materielle,by=c('CFSAUID'='cp3'))
+
+mapplot(materielle,'materielle_median','Material deprivation in Montreal between \n 2001 and 2011',3)
+```
+
+```{r,message=F,warning=F}
+mapplot(sociale,'sociale_median','Social deprivation in Montreal between \n 2001 and 2011',3)
 ```
 
