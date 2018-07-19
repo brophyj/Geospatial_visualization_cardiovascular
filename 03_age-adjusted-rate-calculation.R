@@ -7,16 +7,19 @@ clsc<-readRDS('cleaned_clsc_terr.RData')%>%rename(clsc_rez=code_clsc)
 ##############################################################################################################
 #calculate age-adjusted AS incidence rate in each fsa area:
 
-#calculate number of AS cases (from in hospital diagnosis) in each fsa area:
-case<-readRDS('case1.RData')
-case<-case%>%distinct(nam,dtsort,cyear)%>%
-      left_join(case,clsc[,c(1,2,4)],by=c('nam'='nam','cyear'='year'))%>%
+#calculate number of AS cases (from in hospital diagnosis and outpatient diagnosis) in each fsa area:
+case<-readRDS('case1.RDS')
+case$cyear<-year(case$dtsort)
+
+
+case<-case%>%
+      left_join(clsc[,c(1,2,4)],by=c('nam'='nam','cyear'='year'))%>%
       filter(!is.na(pc))%>%
-      left_join(case,demo[,c(1:2,5)])
+      left_join(demo[,1:2])
 
 #calculate age at the time AS was first diagnosed in an individual
 #use year of diagnosis to calculate age (equivalent to rounding, birth date not available)
-case$age_index<-as.numeric(case$age+(case$dtsort-case$dt_index)/365)
+case$age_index<-case$age+as.numeric(case$dtsort-case$dt_index)/365
 case$age_index.cat<-cut(case$age_index,breaks=c(seq(from = 60, to =85, by =5),Inf),right=F)
 
 case_count<-case%>%filter(pc %in% fsacode)%>%
@@ -27,7 +30,7 @@ case_count<-case%>%filter(pc %in% fsacode)%>%
 
 final_tb<-age_df3%>%filter(V5 %in% c('[65,70)','[70,75)','[75,80)','[80,85)','[85,Inf)'))%>%
           left_join(case_count,by=c('fsa_clean'='pc','V5'='age_index.cat'))%>%
-          left_join(final_tb,standard_pop[,3:4])
+          left_join(final_tb,standard_pop)
 
 #mistake in coding: H0A not assigned FSA but show up in RAMQ data (1 observation deleted)
 
@@ -50,16 +53,18 @@ age_standaridized<-final_tb%>%group_by(fsa_clean)%>%
 
 ########################################################################################3
 #now calculate age-standarized rate of AS surgical interventions:
-interv<-readRDS('interv.RData')
+interv<-readRDS('interv.RDS')
+#subset SAVR patients with a diagnosis code:
+interv%<>%filter(nam %in% case$nam)
+interv$cyear<-year(interv$dt_interv)
 
-interv<-interv%>%distinct(nam,dt_interv,cyear)
 interv<-left_join(interv,clsc[,c(1,2,4)],by=c('nam'='nam','cyear'='year'))%>%
   filter(!is.na(pc))
-interv<-left_join(interv,demo[,c(1:2,5)])
+interv<-left_join(interv,demo[,1:2])
 
 #calculate age at the time AS was first diagnosed in an individual
 #use year of diagnosis to calculate age (equivalent to rounding, birth date not available)
-interv$age_index<-as.numeric(interv$age+(interv$dt_interv-interv$dt_index)/365)
+interv$age_index<-interv$age+as.numeric(interv$dt_interv-interv$dt_index)/365
 interv$age_index.cat<-cut(interv$age_index,breaks=c(seq(from = 60, to =85, by =5),Inf),right=F)
 
 interv_count<-interv%>%filter(pc %in% fsacode)%>%
@@ -68,7 +73,7 @@ interv_count<-interv%>%filter(pc %in% fsacode)%>%
 
 interv_final_tb<-age_df3%>%filter(V5 %in% c('[65,70)','[70,75)','[75,80)','[80,85)','[85,Inf)'))%>%
   left_join(interv_count,by=c('fsa_clean'='pc','V5'='age_index.cat'))%>%
-  left_join(standard_pop[,3:4])%>%
+  left_join(standard_pop)%>%
   mutate(age.specific.rate=round(interv/population*1000,1))%>%
   group_by(fsa_clean)%>%
   mutate(proportion=population.std/sum(population.std))%>%
@@ -101,10 +106,13 @@ acute_mi<-acute_mi%>%mutate(age_index=as.numeric(age+(dtsort-dt_index)/365))%>%
                      left_join(clsc[,c(1,2,4)],by=c('nam'='nam','cyear'='year'))%>%
                      filter(!is.na(pc))
 
+#count mi cases by pc and age category:
 mi_count<-acute_mi%>%filter(pc %in% fsacode)%>%
   group_by(pc,age_index.cat)%>%
   summarise(mi=n_distinct(nam))
 
+
+#bind to standard population to calculate age-standarized rates:
 mi_final_tb<-age_df3%>%filter(V5 %in% c('[65,70)','[70,75)','[75,80)','[80,85)','[85,Inf)'))%>%
   left_join(mi_count,by=c('fsa_clean'='pc','V5'='age_index.cat'))%>%
   left_join(standard_pop[,3:4])%>%

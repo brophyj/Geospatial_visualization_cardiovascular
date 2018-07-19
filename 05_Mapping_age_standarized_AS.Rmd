@@ -44,7 +44,7 @@ fsa_mtl2<-left_join(fsa_mtl2,fsa_data[,c(1,4)])
 ```
 
 
-This plots shows age-standarized incidence rate of aortic stenosis (per 1000 population **above 60**) in Montreal between 2000 and 2010. Greater Montreal region was divided by 119 FSA regions. The number of incidence cases were ascertained from in-hospital diagnosis of aortic stenosis from RAMQ database.
+This plots shows age-standarized incidence rate of aortic stenosis (per 1000 population **above 65**) in Montreal between 2000 and 2010. Greater Montreal region was divided by 119 FSA regions. The number of incidence cases were ascertained from in-hospital diagnosis of aortic stenosis from RAMQ database.
 
 Age-specific population data for each FSA area was extracted from Statistic Canada 2006 Census. And the 2006 Age-specific Canada population was used as the standard population.
 
@@ -81,7 +81,7 @@ mapplot(age_incidence,'age.standarized.rate','Age-standarized incidence AS rate 
 ```
 
 
-This plots shows the rate of surgical valve replacement(per 1000 population **above 60**) performed in Montreal between 2000 and 2010. Greater Montreal region was divided by 119 FSA regions.The number of SAVRs were ascertained from in-hospital interventions from RAMQ database.
+This plots shows the rate of surgical valve replacement(per 1000 population **above 65**) performed in Montreal between 2000 and 2010. Greater Montreal region was divided by 119 FSA regions.The number of SAVRs were ascertained from in-hospital interventions from RAMQ database.
 
 
 ```{r,message=F,warning=F}

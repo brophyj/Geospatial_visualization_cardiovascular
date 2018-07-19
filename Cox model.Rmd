@@ -1,0 +1,108 @@
+---
+title: Using Mixed effect Cox model to study the factors associated with rate of SAVR in
+  AS patients in Montreal
+author: "Nancy Zhu"
+date: "July 18, 2018"
+output: 
+  html_document:
+    theme: flatly
+    hightlight: tango
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Introduction
+A retrospective cohort study was designed to study the factors associated with the rate of SAVR (surgical aortic stenosis valve replacement) in aortic stenosis patients in Montreal. The study cohort was extracted from the RAMQ database:
+
+**Inclusion criteria:**
+
+Individuals aged >=67 who fulfilled one of the following 3 criterias between 2000-04-01 and 2011-03-31:
+
+1. Had been diagnosed aortic stenosis during hospital admission
+
+2. Had been diagnosed aortic stenosis at least twice during outpatient visits
+
+3. Had been diagnosed aortic stenosis by a cardiologist during outpatient visits
+
+The earliest date of diagnosis was used as the study entry date
+
+**Exclusion criteria:**
+
+1. Individuals with less than one year history in RAMQ database prior to study entry
+
+**Study endpoints:**
+
+1. Having SAVR (ascertained from physician billing information)
+
+2. Death of all causes
+
+3. Study end 2011-03-31
+
+
+```{r,message=F,warning=F}
+library(tableone)
+library(survival)
+library(coxme)
+library(ggplot2)
+library(dplyr)
+cohort<-readRDS('data_for_cox.RData')
+cohort$futime2<-as.numeric(cohort$futime)
+```
+
+#### Some descriptive analysis
+Baseline characteristics:
+```{r}
+variables<-c('age_entry','futime2','sexe','diabete_combined','CKD','hypertension_combined',
+             'pvd_combined','cad_combined','copd_combined','hyperlipidemia_combined','mi','sociale_median','materielle_median')
+factor_vars<-c('sexe','diabete_combined','CKD','hypertension_combined',
+               'pvd_combined','cad_combined','copd_combined','hyperlipidemia_combined','mi','sociale_median','materielle_median')
+
+cohort[,factor_vars]<-lapply(cohort[,factor_vars],as.factor)
+
+CreateTableOne(variables,'outcome',cohort,factorVars =factor_vars )
+```
+
+
+#### Mixed effect Cox model:
+A mixed effect Cox model was used to investigate the association between socioeconomic status and the rate of SAVR in AS patients. A mixed model was choosen to address potential correlation introduced by geographic location. The random effect in the model is the FSA region for each individuals. The fixed effects are: Age at cohort entry, sex, material and social deprivation index, history of diabetes, hypertension, peripheral vascular disease, coronary heart disease, COPD, hyperlipidemia and acute myocardial infarction.
+
+```{r}
+# --- fit a mixed effect Cox model with FSA code as the cluster
+m1 <- coxme(Surv(futime, outcome) ~ age_entry + sexe + materielle_median + 
+              sociale_median + CKD+ mi + diabete_combined+ hypertension_combined + pvd_combined + cad_combined +
+              copd_combined + hyperlipidemia_combined + (1 | pc), data = cohort)
+
+summary(m1)
+
+```
+
+```{r}
+# ----calculate confidence interval of coefficients:
+#first get SE:
+se<-sqrt(diag(vcov(m1)))
+coeff<-m1$coefficients
+
+# 95% CI is calculated as (exp(coeff-1.96*SE),exp(coeff+1.96*SE))
+CI<-data.frame(low.95=exp(coeff-1.96*se),high.95=exp(coeff+1.96*se))
+CI
+```
+
+Compare mixed effect model with a regular Cox model with no adjustment for geographic location:
+```{r}
+# --- fit a regular Cox model
+m2<-coxph(Surv(futime, outcome) ~ age_entry + sexe + materielle_median + 
+            sociale_median + CKD + mi + diabete_combined + hypertension_combined + pvd_combined + cad_combined + copd_combined + hyperlipidemia_combined, data = cohort)
+
+# --- compare two models:
+anova(m1,m2)
+```
+
+#### Things to consider:
+1. Test the hypothesis of the model
+
+2. Fit Age as a categorical variable?
+
+3. Surprisingly, the follow up time between those who had surgery and those who didn't were close, suggesting death due to other causes needs to be taken in account.
