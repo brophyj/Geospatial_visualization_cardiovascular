@@ -1,0 +1,76 @@
+---
+title: "Poisson regression model"
+author: "Nancy Zhu"
+date: "July 3, 2018"
+output: 
+  html_document:
+    theme: flatly
+    hightlight: tango
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This file shows my first attempt to fit a poisson regression model to study the association between the rate of SAVR among AS patients and factors such as Age, SES status in different Montreal FSA regions between 2001 and 2010.
+
+The data looks like this:
+```{r,message=F,warning=F}
+library(magrittr)
+library(dplyr)
+ds<-readRDS('dataset_poisson.RData')
+ds%<>%rename(agegrp=V5)
+head(ds,10)
+```
+
+Now, run a simple poisson regression model:
+```{r}
+fit <- glm(interv ~ agegrp + materielle_median + sociale_median + offset(log(case)), data = ds, family = poisson)
+result<-summary(fit)
+result
+
+exp(coef(result))
+```
+
+From the exponetiated coefficients, it seems that as the age increases, the rate of having SAVR decreases. As people are more socially or materially more deprived, the rate of having SAVR decreases.
+
+Now, check over-dispersion of the model:
+```{r}
+data.frame(deviance(fit), df=fit$df.residual)
+
+#deviance goodness of fit
+p.value<-pchisq(fit$deviance, df=fit$df.residual, lower.tail=FALSE)
+
+```
+
+The dispersion parameter is `r deviance(fit)/fit$df.residual`, close to 1, thus the data is not too dispersed for the model fitted.
+
+Since the p value from the goodness of fit test is `r p.value`, above 0.05. The null hypothesis cannot be rejected, thus the model fits the data.
+
+**Things to improve for the analysis:**
+
+1.0 in material and sociale deprivation index were treated as missing data and were removed in this analysis, however those variable can be imputed from previous information
+
+2.Other variables like incidence of MI, hypertension were not incorportaed in this analysis. Residual confoundings
+
+
+####Updated model:
+
+1. imputed value for material and sociale deprivation index,where missing value was replaced with median value within the same reference year and postal code region; if missing value happend for a postal code region, values were imputed based on the same reference year with a previous postal code region
+
+2. acute MI was added as a confounder (acute MI was ascertained from in-hospital admission diagnosis data)
+the count of MI cases were categorized into 5 quintiles
+
+```{r}
+fit2 <- glm(interv ~ agegrp + materielle_median + sociale_median + mi_cat+ offset(log(case)), data = ds, family = poisson)
+result2<-summary(fit2)
+result2
+
+exp(coef(result2))
+```
+
+```{r}
+
+```
+

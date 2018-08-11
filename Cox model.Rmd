@@ -48,8 +48,10 @@ library(survival)
 library(coxme)
 library(ggplot2)
 library(dplyr)
+library(lubridate)
 cohort<-readRDS('data_for_cox.RData')
 cohort$futime2<-as.numeric(cohort$futime)
+cohort[,c('sociale_median','materielle_median')]<-lapply(cohort[,c('sociale_median','materielle_median')],as.factor)
 ```
 
 #### Some descriptive analysis
@@ -96,13 +98,56 @@ Compare mixed effect model with a regular Cox model with no adjustment for geogr
 m2<-coxph(Surv(futime, outcome) ~ age_entry + sexe + materielle_median + 
             sociale_median + CKD + mi + diabete_combined + hypertension_combined + pvd_combined + cad_combined + copd_combined + hyperlipidemia_combined, data = cohort)
 
+summary(m2)
+
 # --- compare two models:
 anova(m1,m2)
 ```
+From the anova test, it seems that there is no significant difference between the hierachical model and the normal Cox model, mainly because social and material deprivation index were measured based on FSA region, thus taking into account the regional variance.
 
 #### Things to consider:
 1. Test the hypothesis of the model
 
 2. Fit Age as a categorical variable?
+No, age is better kept as a continuous variable (less information loss)
 
 3. Surprisingly, the follow up time between those who had surgery and those who didn't were close, suggesting death due to other causes needs to be taken in account.
+
+#### Check proportional hazard assumption of the Cox model:
+```{r}
+test.ph <- cox.zph(m2)
+test.ph
+```
+From the output above, the test is statistically significant for covariates CAD and Age, and the global test is also statistically significant. Therefore, the proportional hazards assumption is not met in this model.
+
+
+
+```{r}
+plot(test.ph[1], main='Schoenfeld residuals plot for Age')
+
+#the hazard ratio increases at older age
+
+plot(test.ph[16], main='Schoenfeld residuals plot for CAD')
+```
+
+
+#### Competing risk model:
+```{r}
+#recode outcome status: 0, censored 1, event 2,all cause mortality
+cohort$outcome_competing<-cohort$outcome
+cohort$outcome_competing[cohort$outcome==0&cohort$Dt_dec<ymd('2011-03-31')]<-2
+
+```
+
+```{r}
+library(cmprsk)
+cov<-model.matrix(~age_entry + sexe + materielle_median +      sociale_median + CKD + mi + diabete_combined + hypertension_combined +      pvd_combined + cad_combined + copd_combined + hyperlipidemia_combined,data=cohort)[,-1]
+
+crr.model<-crr(cohort$futime,cohort$outcome_competing,cov)
+
+summary(crr.model)
+```
+
+From the competing risk model, individuals who are socially deprived still showed a significant lower probability of having SAVR. 
+
+**However, AS patients with history of myocardial infarction, peripheral vascular disease or coronary heart disease all showed significantly lower rate of getting SAVR independent of other variables. Can this be explained clinically? OR is that due to some residual confounding?**
