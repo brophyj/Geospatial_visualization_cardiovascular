@@ -21,12 +21,13 @@ From mapping, we observed variance in AS and SAVR incidence rate between Montrea
 
 Confounders in both models include SEC, past history of acute MI, diabetes, hypertension, chronic kidney diseases, COPD
 
-SEC status are ascertained from 
+SEC status are ascertained from deprivation index available in the RAMQ database. Deprivation index provides index for both social and material deprivation. The median value of each index were calculated for each FSA region between 2000 and 2010 and were used in the models. [04_deprivation_cal.R](https://github.com/nancyzhu24/Geospatial_visualization_cardiovascular/blob/master/04_deprivation_cal.R)
 
 ###### Poisson model
 
 
 ###### Cox model
+The data pre-processing steps are available in [data_clean_Cox_model.R](https://github.com/nancyzhu24/Geospatial_visualization_cardiovascular/blob/master/data_clean_Cox_model.R). This file includes all code to select study cohort and ascertain covariates. Several models, including a mixed effect cox model, competing risk effect model were performed to investigate the association between SEC and rate of SAVR among AS patients in Montreal. The results and code for those models can be found in [Cox model.Rmd](https://github.com/nancyzhu24/Geospatial_visualization_cardiovascular/blob/master/Cox%20model.Rmd)
 
 
 
