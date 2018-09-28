@@ -17,6 +17,8 @@ age_df<-data.frame(age_cat=age_cat,
                    fsa=geo,
                    population=value,stringsAsFactors = F)
 
+fsacode<-read.csv('montreal_fsa.csv',stringsAsFactors = F,header=F)
+fsacode<-unlist(str_extract_all(fsacode$V1,'H\\d{1}[[:upper:]]{1}'))
 #clean up table:
 age_df$fsa_clean<-str_extract(age_df$fsa,'[[:upper:]]\\d[[:upper:]]')
 age_df2<-age_df%>%filter(fsa_clean %in% fsacode)

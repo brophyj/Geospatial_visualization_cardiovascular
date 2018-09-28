@@ -27,7 +27,7 @@ mi_count<-acute_mi%>%filter(pc %in% fsacode)%>%
 mi_count <- setDT(mi_count)[, mi_cat:= cut(mi, quantile(mi, probs=0:5/5), include.lowest=TRUE, labels=FALSE)]
 
 
-# confounder 2: diabetes:
+# confounder 2: 
 # ascertain from both in-hospital diagnosis and prescription data:
 #again only take patients entering the study >=66
 #assign the first date of diagnosis or prescription as the date to link to geographic location:
@@ -94,9 +94,9 @@ diag_subset<-diag_subset%>%select(nam,diag_diag,dtadm,dtsort,comorbidity)%>%
                            slice(1)%>%
                            ungroup()
 
-#from prescription data:
-diabete_pres<-readRDS('C:/Users/Nancy Zhu/OneDrive - McGill University/Code for thesis/R/RData files/diabete.RData')
-diabete_pres%<>%filter(nam%in%demo$nam)
+# #from prescription data:
+# diabete_pres<-readRDS('C:/Users/Nancy Zhu/OneDrive - McGill University/Code for thesis/R/RData files/diabete.RData')
+# diabete_pres%<>%filter(nam%in%demo$nam)
 
 ############################################################################################################
 #extract first time prescription:
@@ -120,7 +120,79 @@ objects<-lapply(objects,function(x){x<-x%>%select(nam,dt_serv)%>%
                                            slice(1)%>%
                                            ungroup()
                                     return(x)})
-#add column to indicate drug category:
-for (i in 1:6){
-  objects[[i]]%<>%mutate(drug_cat=i)
+
+#####################################################################################################
+#For Cox model dataset creation, see 'data_clean_Cox_model.R
+
+#For Poisson model dataset creation:
+#Combine data from diagnosis and prescription
+#Pick which ever event happend first as the date of confounder ascertainment, bind to terr table by year to define geographic location
+#Calculate total count of confounders in each pc3 over 10 years
+
+#add column to indicate drug category:                 code from drug:
+# #code for comorbidity:  1.dyslipidemia              statin  (5)
+#                         2.diabete                   diabete (3)
+#                         3.chronic_kidney 
+#                         4.hypertension              hypertension (4)
+#                         5.cad                       beta-blocker (2)
+#                         6.COPD                      asthma (1)
+#                         7.hf 
+#                         8.peripheral                pvd (6)
+
+objects[[1]]['comorbidity']<-6
+objects[[2]]['comorbidity']<-5
+objects[[3]]['comorbidity']<-2
+objects[[4]]['comorbidity']<-4
+objects[[5]]['comorbidity']<-1
+objects[[6]]['comorbidity']<-8
+
+prescription<-do.call(rbind,objects)
+
+rm(objects)
+
+#bind diagnosis and prescription data:
+combtb<-full_join(diag_subset[,c(1,2,4,5)],prescription)
+demo%<>%filter(age>=66)
+combtb%<>%filter(nam %in% demo$nam)
+
+combtb$year_ascertain<-year(pmin(combtb$dtsort,combtb$dt_serv,na.rm=T))
+
+combtb%<>%left_join(clsc[,c(1,2,4)],by=c('nam','year_ascertain'='year'))
+
+combtb<-left_join(combtb,demo[,c(1,2,5)])
+
+#calculate age at diagnosis or prescription, whichever happened first:
+#combtb$age_ascertain<-combtb$age+combtb$year_ascertain-year(combtb$dt_index)
+#combtb$age_cat<-cut(combtb$age_ascertain,breaks=c(seq(from = 60, to =85, by =5),Inf),right=F)
+
+#calculate total number of cases for each comorbidity over the 10 years in each pc
+comorb_summary<-combtb%>%group_by(pc,comorbidity)%>%summarise(n=n_distinct(nam))%>%
+                         filter(pc!=999 & pc %in% fsacode)%>%
+                         mutate(comorbidity=case_when(comorbidity==1~'dyslipidemia',
+                                                      comorbidity==2~'diabete',
+                                                      comorbidity==3~'CKD',
+                                                      comorbidity==4~'hypertension',
+                                                      comorbidity==5~'CAD',
+                                                      comorbidity==6~'COPD',
+                                                      comorbidity==7~'HF',
+                                                      comorbidity==8~'PVD'))
+
+#reorganize to wide format and bind to final ds for modelling:
+comorb_summary<-spread(comorb_summary,comorbidity,n)
+comorb_summary[is.na(comorb_summary)]<-0
+
+#transform continuous count into categories by quantile:
+ApplyQuintiles <- function(x) {
+  cut(x, breaks=c(quantile(x, probs = seq(0, 1, by = 0.20))), 
+      labels=c("1","2","3","4","5"),include.lowest=TRUE)
 }
+
+comorb_summary_cat<-list()
+for(i in seq_along(colnames(comorb_summary)[-1])){
+  comorb_summary_cat[[i]]<-ApplyQuintiles((comorb_summary)[[i+1]])
+}
+
+names(comorb_summary_cat)<-colnames(comorb_summary)[2:9]
+
+comorb_summary_cat<-as.data.frame(do.call(cbind,comorb_summary_cat))
+comorb_summary_cat$pc<-comorb_summary$pc
