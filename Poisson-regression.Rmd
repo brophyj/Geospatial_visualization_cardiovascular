@@ -1,7 +1,7 @@
 ---
-title: "Poisson regression model"
+title: "Poisson regression model-Updated with confounders"
 author: "Nancy Zhu"
-date: "July 3, 2018"
+date: "August 28, 2018"
 output: 
   html_document:
     theme: flatly
@@ -21,6 +21,7 @@ library(magrittr)
 library(dplyr)
 ds<-readRDS('dataset_poisson.RData')
 ds%<>%rename(agegrp=V5)
+ds2<-readRDS('dataset_poisson2.RData')
 head(ds,10)
 ```
 
@@ -32,6 +33,12 @@ result
 
 exp(coef(result))
 ```
+
+Confidence interval of odds ratios:
+```{r}
+exp(confint(fit))
+```
+
 
 From the exponetiated coefficients, it seems that as the age increases, the rate of having SAVR decreases. As people are more socially or materially more deprived, the rate of having SAVR decreases.
 
@@ -59,18 +66,22 @@ Since the p value from the goodness of fit test is `r p.value`, above 0.05. The 
 
 1. imputed value for material and sociale deprivation index,where missing value was replaced with median value within the same reference year and postal code region; if missing value happend for a postal code region, values were imputed based on the same reference year with a previous postal code region
 
-2. acute MI was added as a confounder (acute MI was ascertained from in-hospital admission diagnosis data)
-the count of MI cases were categorized into 5 quintiles
+2. acute MI, Chronic kidney disease, diabetes, dyslipidemia, peripheral vascular disease and hypertension were added as confounders.
 
+Acute MI was ascertained from in-hospital admission diagnosis data, while the rest of the confounders were ascertained from a combination of in-hospital admission and prescription history. The first date of confounder ascertainment was defined as either the date of hospital discharge or first service date of prescription, whichever occured first. The data were grouped by postal code and a count of each confounder was obtained for each pc region over 10 years, the continous counts were transformed into 5 categories divided by quantiles.  
+
+   
 ```{r}
-fit2 <- glm(interv ~ agegrp + materielle_median + sociale_median + mi_cat+ offset(log(case)), data = ds, family = poisson)
+fit2 <- fit <- glm(interv ~ V5 + materielle_median + sociale_median+ mi_cat+CKD+COPD+diabete+dyslipidemia+PVD+hypertension+offset(log(case)), data = ds2, family = poisson)
+
 result2<-summary(fit2)
 result2
 
 exp(coef(result2))
 ```
 
+Confidence interval of odds ratio:
 ```{r}
-
+exp(confint(fit2))
 ```
 
